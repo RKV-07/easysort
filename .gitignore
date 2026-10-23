@@ -1,0 +1,23 @@
+# Rust
+/target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# easysort runtime
+.easysort-manifest.jsonl
+
+# scratch / pseudocode (local only)
+psc/
+/tmp/
+
+# editor / tooling
+.vscode/
+.idea/
+*.swp
