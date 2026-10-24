@@ -19,8 +19,9 @@ pub struct Cli {
 pub enum Command {
     /// Non-interactive sort (cron-friendly).
     Sort {
-        /// Folder to organize.
-        path: PathBuf,
+        /// Folder(s) to organize. Sorting rules apply to each path.
+        #[arg(required = true, num_args = 1..)]
+        paths: Vec<PathBuf>,
         /// Actually move files (default: dry run).
         #[arg(long)]
         run: bool,

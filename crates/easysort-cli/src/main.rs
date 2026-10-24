@@ -17,11 +17,11 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Sort {
-            path,
+            paths,
             run,
             by_date,
             json,
-        }) => cmd_sort(path, run, by_date, json),
+        }) => cmd_sort(paths, run, by_date, json),
         Some(Command::Undo { manifest }) => cmd_undo(manifest),
         None => {
             // default: TUI
@@ -37,7 +37,21 @@ fn default_downloads() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn cmd_sort(path: PathBuf, run: bool, by_date: bool, json: bool) -> anyhow::Result<()> {
+fn cmd_sort(paths: Vec<PathBuf>, run: bool, by_date: bool, json: bool) -> anyhow::Result<()> {
+    for path in &paths {
+        if !path.is_dir() {
+            eprintln!("Error: '{}' is not a valid folder.", path.display());
+            std::process::exit(1);
+        }
+    }
+    // process each path with same rules
+    for path in paths.clone() {
+        cmd_sort_one(path, run, by_date, json)?;
+    }
+    Ok(())
+}
+
+fn cmd_sort_one(path: PathBuf, run: bool, by_date: bool, json: bool) -> anyhow::Result<()> {
     if !path.is_dir() {
         eprintln!("Error: '{}' is not a valid folder.", path.display());
         std::process::exit(1);

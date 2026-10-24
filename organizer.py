@@ -75,24 +75,27 @@ def organize_by_date(folder: Path, dry_run: bool = True) -> None:
     print(f"\n{label} {moved} file(s).")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 organizer.py /path/to/folder [--run] [--by-date]")
+    args = sys.argv[1:]
+    execute = "--run" in args
+    by_date = "--by-date" in args
+    paths = [a for a in args if not a.startswith("--")]
+
+    if not paths:
+        print("Usage: python3 organizer.py /path/to/folder [/path/to/folder2 ...] [--run] [--by-date]")
         sys.exit(1)
 
-    target   = Path(sys.argv[1])
-    execute  = "--run" in sys.argv
-    by_date  = "--by-date" in sys.argv
+    for target_str in paths:
+        target = Path(target_str)
+        if not target.is_dir():
+            print(f"Error: '{target}' is not a valid folder.")
+            sys.exit(1)
 
-    if not target.is_dir():
-        print(f"Error: '{target}' is not a valid folder.")
-        sys.exit(1)
+        mode = "DATE" if by_date else "TYPE"
+        run = "LIVE" if execute else "DRY RUN"
+        print(f"📂 Organizing: {target}")
+        print(f"   Mode: {mode}  |  {run}\n")
 
-    mode = "DATE" if by_date else "TYPE"
-    run  = "LIVE" if execute else "DRY RUN"
-    print(f"📂 Organizing: {target}")
-    print(f"   Mode: {mode}  |  {run}\n")
-
-    if by_date:
-        organize_by_date(target, dry_run=not execute)
-    else:
-        organize_by_type(target, dry_run=not execute)
+        if by_date:
+            organize_by_date(target, dry_run=not execute)
+        else:
+            organize_by_type(target, dry_run=not execute)

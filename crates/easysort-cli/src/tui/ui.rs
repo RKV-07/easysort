@@ -32,11 +32,13 @@ pub fn render(f: &mut Frame, app: &App) {
     .block(Block::default().borders(Borders::ALL).title("easysort"));
     f.render_widget(header, chunks[0]);
 
-    // filter line
-    let filter_text = if app.filtering {
+    // filter / path line
+    let filter_text = if app.editing_path {
+        format!(" path: {}_", app.path_input)
+    } else if app.filtering {
         format!(" filter: {}_", app.filter)
     } else if app.filter.is_empty() {
-        " filter: (none)  — press / to filter".to_string()
+        " filter: (none)  — press / to filter  ·  o change folder".to_string()
     } else {
         format!(" filter: {}", app.filter)
     };
@@ -108,9 +110,22 @@ pub fn render(f: &mut Frame, app: &App) {
         app.status,
         app.selected.len(),
         app.total_selected_bytes(),
-        "space toggle · a all · n none · / filter · s sort · tab mode · enter apply · u undo · ? help · q quit",
+        "space toggle · a all · n none · / filter · o folder · s sort · tab mode · enter apply · u undo · ? help · q quit",
     );
     f.render_widget(Paragraph::new(status).wrap(Wrap { trim: true }), chunks[3]);
+
+    // warning popup
+    if let Some(w) = &app.warning {
+        let area = centered_rect(60, 25, f.area());
+        f.render_widget(Clear, area);
+        let text = format!("{}\n\n[any key] dismiss", w);
+        f.render_widget(
+            Paragraph::new(text)
+                .block(Block::default().borders(Borders::ALL).title("Warning"))
+                .alignment(Alignment::Center),
+            area,
+        );
+    }
 
     // overlays
     match app.screen {

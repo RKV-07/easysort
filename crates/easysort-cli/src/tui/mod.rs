@@ -37,6 +37,9 @@ pub struct App {
     pub selected: HashSet<usize>,
     pub filter: String,
     pub filtering: bool,
+    pub path_input: String,
+    pub editing_path: bool,
+    pub warning: Option<String>,
     pub sort: SortKey,
     pub cursor: usize,
     pub screen: Screen,
@@ -60,6 +63,9 @@ impl App {
             selected: HashSet::new(),
             filter: String::new(),
             filtering: false,
+            path_input: String::new(),
+            editing_path: false,
+            warning: None,
             sort: SortKey::Name,
             cursor: 0,
             screen: Screen::Scanning,
@@ -85,6 +91,18 @@ impl App {
                 self.screen = Screen::Ready;
             }
         }
+    }
+
+    pub fn switch_path(&mut self, p: PathBuf) {
+        if !p.is_dir() {
+            self.warning = Some(format!("Directory does not exist: {}", p.display()));
+            self.status = format!("not a directory: {}", p.display());
+            return;
+        }
+        self.target = p.clone();
+        self.manifest_path = p.join(".easysort-manifest.jsonl");
+        self.scan();
+        self.status = format!("switched to {}", self.target.display());
     }
 
     pub fn replan(&mut self) {
@@ -273,23 +291,28 @@ fn run_loop(terminal: &mut ratatui::DefaultTerminal, app: &mut App) -> anyhow::R
                     {
                         return Ok(());
                     }
-                    match app.screen {
-                        Screen::Ready => handle_ready(app, key),
-                        Screen::Confirming => handle_confirming(app, key),
-                        Screen::Result => handle_result(app, key),
-                        Screen::Help => {
-                            if matches!(
-                                key.code,
-                                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?')
-                            ) {
-                                app.screen = Screen::Ready;
-                            }
-                        }
-                        Screen::Applying => {}
-                        Screen::Scanning => {}
-                    }
-                    if app.filtering {
+                    if app.warning.is_some() {
+                        app.warning = None;
+                    } else if app.editing_path {
+                        handle_path_input(app, key);
+                    } else if app.filtering {
                         handle_filter_input(app, key);
+                    } else {
+                        match app.screen {
+                            Screen::Ready => handle_ready(app, key),
+                            Screen::Confirming => handle_confirming(app, key),
+                            Screen::Result => handle_result(app, key),
+                            Screen::Help => {
+                                if matches!(
+                                    key.code,
+                                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?')
+                                ) {
+                                    app.screen = Screen::Ready;
+                                }
+                            }
+                            Screen::Applying => {}
+                            Screen::Scanning => {}
+                        }
                     }
                     if app.quit {
                         return Ok(());
@@ -385,6 +408,10 @@ fn handle_ready(app: &mut App, key: KeyEvent) {
         KeyCode::Char('u') => {
             app.undo_last();
         }
+        KeyCode::Char('o') => {
+            app.editing_path = true;
+            app.path_input = app.target.to_string_lossy().to_string();
+        }
         KeyCode::Char('?') => {
             app.screen = Screen::Help;
         }
@@ -434,6 +461,34 @@ fn handle_filter_input(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Char(c) => {
             app.filter.push(c);
+        }
+        _ => {}
+    }
+}
+
+fn handle_path_input(app: &mut App, key: crossterm::event::KeyEvent) {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Esc => {
+            app.editing_path = false;
+            app.path_input.clear();
+        }
+        KeyCode::Enter => {
+            let p = std::path::PathBuf::from(app.path_input.trim());
+            if p.is_dir() {
+                app.switch_path(p);
+                app.editing_path = false;
+                app.path_input.clear();
+            } else {
+                app.warning = Some(format!("Directory does not exist: {}", p.display()));
+                app.status = format!("not a directory: {}", p.display());
+            }
+        }
+        KeyCode::Backspace => {
+            app.path_input.pop();
+        }
+        KeyCode::Char(c) => {
+            app.path_input.push(c);
         }
         _ => {}
     }
