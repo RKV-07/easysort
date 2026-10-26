@@ -53,6 +53,41 @@ Two ways to sort:
 
 ## Quick start
 
+**Download a prebuilt binary (recommended):**
+
+Prebuilt binaries for Linux, macOS (Intel & Apple Silicon), and Windows are published on the [Releases](https://github.com/RKV-07/easysort/releases/latest) page for every tag.
+
+| OS / arch | Asset |
+|---|---|
+| Linux (x86_64) | `easysort-linux-x86_64.tar.gz` |
+| macOS (Intel) | `easysort-macos-x86_64.tar.gz` |
+| macOS (Apple Silicon) | `easysort-macos-aarch64.tar.gz` |
+| Windows (x86_64) | `easysort-windows-x86_64.zip` |
+
+Linux:
+
+```bash
+tar -xzf easysort-linux-x86_64.tar.gz
+sudo install easysort /usr/local/bin/easysort
+```
+
+macOS:
+
+```bash
+tar -xzf easysort-macos-$(uname -m | sed 's/arm64/aarch64/').tar.gz
+sudo install easysort /usr/local/bin/easysort
+# first run may be blocked by Gatekeeper:
+xattr -d com.apple.quarantine /usr/local/bin/easysort
+```
+
+Windows (PowerShell):
+
+```powershell
+Expand-Archive easysort-windows-x86_64.zip -DestinationPath $env:USERPROFILE\bin
+# add %USERPROFILE%\bin to PATH, then:
+.\easysort.exe $env:USERPROFILE\Downloads
+```
+
 **Build from source:**
 
 ```bash
@@ -231,19 +266,52 @@ See the previous README version's launchd section, or use `cron` via `crontab`. 
 launchctl load ~/Library/LaunchAgents/com.easysort.daily.plist
 ```
 
+### Windows — Task Scheduler
+
+Create a daily task (PowerShell, run as your user):
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "easysort.exe" -Argument "sort $env:USERPROFILE\Downloads --run"
+$trigger = New-ScheduledTaskTrigger -Daily -At 9am
+Register-ScheduledTask -TaskName "easysort-daily" -Action $action -Trigger $trigger
+```
+
+Or use the Python fallback on machines without the binary:
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "python" -Argument "organizer.py $env:USERPROFILE\Downloads --run"
+```
+
 ---
 
 ## Portable Python version
 
-`organizer.py` (98 lines, stdlib only) is kept at the repo root for environments without Rust:
+`organizer.py` (98 lines, stdlib only) is kept at the repo root for environments without Rust (Windows, locked-down machines, CI containers, or anywhere you can't install a binary). It has identical sorting logic and is kept in parity via `tests/parity.py`.
+
+Dry run is the default; add `--run` to move files. `--by-date` switches to date mode.
+
+macOS / Linux:
 
 ```bash
-python3 organizer.py ~/Downloads          # dry run
-python3 organizer.py ~/Downloads --run     # execute
-python3 organizer.py ~/Downloads --by-date # by date
+python3 organizer.py ~/Downloads                  # dry run, by type
+python3 organizer.py ~/Downloads --run            # execute, by type
+python3 organizer.py ~/Downloads --by-date        # dry run, by date
+python3 organizer.py ~/Downloads --by-date --run  # execute, by date
 ```
 
-It has identical sorting logic and is kept in parity via `tests/parity.py`. Use it on locked-down machines, CI containers, or anywhere you can't install a binary.
+Windows (PowerShell / cmd):
+
+```powershell
+python organizer.py %USERPROFILE%\Downloads                  # dry run, by type
+python organizer.py %USERPROFILE%\Downloads --run            # execute, by type
+python organizer.py %USERPROFILE%\Downloads --by-date        # dry run, by date
+python organizer.py %USERPROFILE%\Downloads --by-date --run  # execute, by date
+```
+
+Notes:
+- On Windows use `python`; on macOS/Linux use `python3` (or `python` if aliased).
+- Paths with spaces must be quoted: `python3 organizer.py "C:\Users\you\My Downloads"`.
+- The Python version sorts symlinks as regular files (Rust skips them) and uses case-insensitive collision names.
 
 ---
 
